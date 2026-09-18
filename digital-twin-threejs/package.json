@@ -1,0 +1,42 @@
+{
+  "name": "@autonomous/digital-twin-threejs",
+  "version": "0.1.0",
+  "license": "COPYRIGHT 2026 HONEYWELL INTERNATIONAL SARL",
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "cd ../.. && vitest run packages/digital-twin-threejs/src",
+    "lint": "eslint src --max-warnings=0",
+    "updateversion": "npm version"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18",
+    "@forge/common": "^2.1.1"
+  },
+  "dependencies": {
+    "@react-three/drei": "^9.122.0",
+    "@react-three/fiber": "^8.18.0",
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "@types/three": "^0.185.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  }
+}
