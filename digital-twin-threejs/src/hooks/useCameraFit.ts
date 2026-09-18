@@ -23,9 +23,10 @@ export interface IUseCameraFitParams {
   orthoView: OrthoView;
   initialCameraState?: IViewportState['camera'];
   orbitControlsRef: RefObject<IOrbitControlsApi | null>;
+  onReady?: () => void;
 }
 
-export function useCameraFit({ camera, viewportSize, scene, modelUrl, cameraMode, orthoView, initialCameraState, orbitControlsRef }: IUseCameraFitParams) {
+export function useCameraFit({ camera, viewportSize, scene, modelUrl, cameraMode, orthoView, initialCameraState, orbitControlsRef, onReady }: IUseCameraFitParams) {
   const effectiveOrthoView = cameraMode === 'ortho' ? orthoView : 'front';
   const viewportSizeRef = useRef(viewportSize);
   const hasUserInteractedSinceModelLoadRef = useRef(false);
@@ -105,6 +106,7 @@ export function useCameraFit({ camera, viewportSize, scene, modelUrl, cameraMode
 
       lastAppliedInitialCameraStateRef.current = restoredCameraState;
       hasUserInteractedSinceModelLoadRef.current = false;
+      onReady?.();
 
       return;
     }
@@ -128,6 +130,8 @@ export function useCameraFit({ camera, viewportSize, scene, modelUrl, cameraMode
         orbitControlsRef.current.update();
       }
 
+      onReady?.();
+
       return;
     }
 
@@ -148,6 +152,8 @@ export function useCameraFit({ camera, viewportSize, scene, modelUrl, cameraMode
         orbitControlsRef.current.target.copy(target);
         orbitControlsRef.current.update();
       }
+
+      onReady?.();
     }
-  }, [camera, scene, modelUrl, cameraMode, effectiveOrthoView, initialCameraState, orbitControlsRef]);
+  }, [camera, scene, modelUrl, cameraMode, effectiveOrthoView, initialCameraState, orbitControlsRef, onReady]);
 }

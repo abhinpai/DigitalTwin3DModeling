@@ -1,14 +1,15 @@
 import { Grid, OrbitControls, OrthographicCamera, PerspectiveCamera } from '@react-three/drei';
-import { Canvas, useThree } from '@react-three/fiber';
 import type { ThreeEvent } from '@react-three/fiber';
-import { Suspense, forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, type ForwardedRef, type MutableRefObject, type RefObject } from 'react';
+import { Canvas, useThree } from '@react-three/fiber';
+import { Component, Suspense, forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type ErrorInfo, type ForwardedRef, type MutableRefObject, type ReactNode, type RefObject } from 'react';
 import { Object3D } from 'three';
+import { ModelLoadingOverlay, type ModelLoadState } from '../../components/ModelLoadingOverlay/ModelLoadingOverlay';
 import { useCameraFit, type IOrbitControlsApi } from '../../hooks/useCameraFit';
 import { useContainerResize } from '../../hooks/useContainerResize';
-import { useNodeHighlight } from '../../hooks/useNodeHighlight';
-import { useNodeVisibility } from '../../hooks/useNodeVisibility';
 import { useModelGrid } from '../../hooks/useModelGrid';
 import { useModelLoader } from '../../hooks/useModelLoader';
+import { useNodeHighlight } from '../../hooks/useNodeHighlight';
+import { useNodeVisibility } from '../../hooks/useNodeVisibility';
 import { useShadowCatcher } from '../../hooks/useShadowCatcher';
 import { useStageTree } from '../../hooks/useStageTree';
 import { useSunLighting } from '../../hooks/useSunLighting';
@@ -91,19 +92,23 @@ export interface IThreeJsRenderProps {
    * consumer code and pass them via this component's normal controlled props.
    */
   initialViewportState?: IViewportState;
+  /** Keep the loading transition visible while an asynchronous saved view is being resolved. */
+  initialViewportStateLoading?: boolean;
   selectedNodeIds?: string[];
   hiddenNodeIds?: string[];
   onStageTreeChange?: (root: IStageTreeNode | null) => void;
   onNodeSelect?: (id: string | null) => void;
+  onLoadStateChange?: (state: ModelLoadState) => void;
 }
 
 interface ILoadedModelProps extends Pick<IThreeJsRenderProps, 'modelUrl' | 'visualMode' | 'cameraMode' | 'orthoView' | 'gridStyle' | 'gridExtentScale' | 'lightingPreset' | 'sunAzimuth' | 'sunElevation' | 'shadowsEnabled' | 'selectedNodeIds' | 'hiddenNodeIds' | 'onStageTreeChange' | 'onNodeSelect'> {
   initialCameraState?: IViewportState['camera'];
   orbitControlsRef: RefObject<IOrbitControlsApi | null>;
   pointerSelectionGestureRef: MutableRefObject<IPointerSelectionGestureState>;
+  onReady: () => void;
 }
 
-function LoadedModel({ modelUrl, visualMode = 'original', cameraMode = 'persp', orthoView = 'front', gridStyle = 'none', gridExtentScale = 1, lightingPreset = 'natural', sunAzimuth, sunElevation, shadowsEnabled = false, selectedNodeIds, hiddenNodeIds, onStageTreeChange, onNodeSelect, initialCameraState, orbitControlsRef, pointerSelectionGestureRef }: ILoadedModelProps) {
+function LoadedModel({ modelUrl, visualMode = 'original', cameraMode = 'persp', orthoView = 'front', gridStyle = 'none', gridExtentScale = 1, lightingPreset = 'natural', sunAzimuth, sunElevation, shadowsEnabled = false, selectedNodeIds, hiddenNodeIds, onStageTreeChange, onNodeSelect, initialCameraState, orbitControlsRef, pointerSelectionGestureRef, onReady }: ILoadedModelProps) {
   const gltf = useModelLoader(modelUrl);
   const { camera, size, scene: rootScene } = useThree();
   const sunTarget = useMemo(() => new Object3D(), []);
@@ -137,6 +142,7 @@ function LoadedModel({ modelUrl, visualMode = 'original', cameraMode = 'persp', 
     orthoView: effectiveOrthoView,
     initialCameraState,
     orbitControlsRef,
+    onReady,
   });
 
   useEffect(() => {
@@ -244,6 +250,31 @@ function LoadedModel({ modelUrl, visualMode = 'original', cameraMode = 'persp', 
   );
 }
 
+interface IModelErrorBoundaryProps {
+  children: ReactNode;
+  onError: () => void;
+}
+
+interface IModelErrorBoundaryState {
+  hasError: boolean;
+}
+
+class ModelErrorBoundary extends Component<IModelErrorBoundaryProps, IModelErrorBoundaryState> {
+  state: IModelErrorBoundaryState = { hasError: false };
+
+  static getDerivedStateFromError(): IModelErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(_error: Error, _info: ErrorInfo) {
+    this.props.onError();
+  }
+
+  render() {
+    return this.state.hasError ? null : this.props.children;
+  }
+}
+
 function ThreeJsRenderComponent({
   modelUrl,
   className,
@@ -258,10 +289,12 @@ function ThreeJsRenderComponent({
   sunElevation,
   shadowsEnabled = false,
   initialViewportState,
+  initialViewportStateLoading = false,
   selectedNodeIds,
   hiddenNodeIds,
   onStageTreeChange,
   onNodeSelect,
+  onLoadStateChange,
 }: IThreeJsRenderProps, ref: ForwardedRef<IThreejsCanvasHandle>) {
   const orbitControlsRef = useRef<IOrbitControlsApi | null>(null);
   const pointerSelectionGestureRef = useRef<IPointerSelectionGestureState>({
@@ -274,6 +307,26 @@ function ThreeJsRenderComponent({
     orbitControlsRef.current = controls as IOrbitControlsApi | null;
   }, []);
   const { containerRef, canRenderCanvas } = useContainerResize();
+  const [readyModelUrl, setReadyModelUrl] = useState<string | null>(null);
+  const [failedModelUrl, setFailedModelUrl] = useState<string | null>(null);
+  const loadState: ModelLoadState = failedModelUrl === modelUrl
+    ? 'error'
+    : readyModelUrl === modelUrl && !initialViewportStateLoading
+      ? 'ready'
+      : 'loading';
+
+  const handleModelReady = useCallback(() => {
+    setReadyModelUrl(modelUrl);
+    setFailedModelUrl((currentUrl) => currentUrl === modelUrl ? null : currentUrl);
+  }, [modelUrl]);
+
+  const handleModelError = useCallback(() => {
+    setFailedModelUrl(modelUrl);
+  }, [modelUrl]);
+
+  useEffect(() => {
+    onLoadStateChange?.(loadState);
+  }, [loadState, onLoadStateChange]);
 
   useImperativeHandle(ref, () => ({
     captureViewportState: () => {
@@ -366,45 +419,54 @@ function ThreeJsRenderComponent({
     <section
       ref={containerRef}
       aria-label="Three.js viewport"
-      className={['h-full w-full overflow-hidden bg-[rgb(var(--color-container))] dark:bg-[rgb(var(--color-container-dark))]', className]
+      aria-busy={loadState === 'loading'}
+      className={['relative h-full w-full overflow-hidden bg-[rgb(var(--color-container))] dark:bg-[rgb(var(--color-container-dark))]', className]
         .filter(Boolean)
         .join(' ')}
       >
       {canRenderCanvas ? (
-        <Canvas
-          shadows={shadowsEnabled && (lightingPreset === 'natural' || lightingPreset === 'directional')}
-          onPointerDown={handleCanvasPointerDown}
-          onPointerUp={handleCanvasPointerUp}
-          onPointerMissed={handlePointerMissed}
-        >
-          {cameraMode === 'ortho' ? <OrthographicCamera makeDefault position={INITIAL_CAMERA_POSITION} /> : <PerspectiveCamera makeDefault fov={cameraFov} position={INITIAL_CAMERA_POSITION} />}
-          <Suspense fallback={null}>
-            <LoadedModel
-              modelUrl={modelUrl}
-              visualMode={visualMode}
-              cameraMode={cameraMode}
-              orthoView={orthoView}
-              gridStyle={gridStyle}
-              gridExtentScale={gridExtentScale}
-              lightingPreset={lightingPreset}
-              sunAzimuth={sunAzimuth}
-              sunElevation={sunElevation}
-              shadowsEnabled={shadowsEnabled}
-              initialCameraState={initialViewportState?.camera}
-              selectedNodeIds={selectedNodeIds}
-              hiddenNodeIds={hiddenNodeIds}
-              onStageTreeChange={onStageTreeChange}
-              onNodeSelect={onNodeSelect}
-              orbitControlsRef={orbitControlsRef}
-              pointerSelectionGestureRef={pointerSelectionGestureRef}
+        <ModelErrorBoundary key={modelUrl} onError={handleModelError}>
+          <Canvas
+            className={[
+              'digital-twin-model-canvas',
+              loadState === 'ready' ? 'digital-twin-model-canvas--ready' : '',
+            ].filter(Boolean).join(' ')}
+            shadows={shadowsEnabled && (lightingPreset === 'natural' || lightingPreset === 'directional')}
+            onPointerDown={handleCanvasPointerDown}
+            onPointerUp={handleCanvasPointerUp}
+            onPointerMissed={handlePointerMissed}
+          >
+            {cameraMode === 'ortho' ? <OrthographicCamera makeDefault position={INITIAL_CAMERA_POSITION} /> : <PerspectiveCamera makeDefault fov={cameraFov} position={INITIAL_CAMERA_POSITION} />}
+            <Suspense fallback={null}>
+              <LoadedModel
+                modelUrl={modelUrl}
+                visualMode={visualMode}
+                cameraMode={cameraMode}
+                orthoView={orthoView}
+                gridStyle={gridStyle}
+                gridExtentScale={gridExtentScale}
+                lightingPreset={lightingPreset}
+                sunAzimuth={sunAzimuth}
+                sunElevation={sunElevation}
+                shadowsEnabled={shadowsEnabled}
+                initialCameraState={initialViewportState?.camera}
+                selectedNodeIds={selectedNodeIds}
+                hiddenNodeIds={hiddenNodeIds}
+                onStageTreeChange={onStageTreeChange}
+                onNodeSelect={onNodeSelect}
+                orbitControlsRef={orbitControlsRef}
+                pointerSelectionGestureRef={pointerSelectionGestureRef}
+                onReady={handleModelReady}
+              />
+            </Suspense>
+            <OrbitControls
+              ref={setOrbitControlsRef}
+              makeDefault
             />
-          </Suspense>
-          <OrbitControls
-            ref={setOrbitControlsRef}
-            makeDefault
-          />
-        </Canvas>
+          </Canvas>
+        </ModelErrorBoundary>
       ) : null}
+      <ModelLoadingOverlay state={loadState} />
     </section>
   );
 }

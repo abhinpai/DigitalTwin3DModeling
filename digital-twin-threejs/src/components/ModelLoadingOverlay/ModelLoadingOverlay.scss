@@ -1,0 +1,105 @@
+.digital-twin-model-loader {
+  --loader-surface: rgb(var(--color-container, 235 239 244));
+  --loader-copy: rgb(var(--color-typography-secondary, 98 110 126));
+
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: var(--loader-surface);
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity 480ms cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 0s linear 0s;
+
+  &[data-state='ready'] {
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition:
+      opacity 480ms cubic-bezier(0.22, 1, 0.36, 1),
+      visibility 0s linear 480ms;
+  }
+
+  &__field {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    pointer-events: none;
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  &__status {
+    position: absolute;
+    bottom: clamp(1.25rem, 5vh, 3rem);
+    left: 50%;
+    color: var(--loader-copy);
+    padding: 0;
+    font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    transform: translateX(-50%);
+  }
+
+  &__error {
+    display: grid;
+    max-width: 24rem;
+    gap: 0.5rem;
+    padding: 1.5rem;
+    color: var(--loader-copy);
+    font-family: 'IBM Plex Sans', sans-serif;
+    text-align: center;
+  }
+
+  &__error-title {
+    color: rgb(var(--forge-text, 25 33 46));
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+
+  &__error-copy {
+    margin: 0;
+    font-size: 0.75rem;
+    line-height: 1.5;
+  }
+}
+
+.digital-twin-model-canvas {
+  opacity: 0;
+  transition: opacity 520ms cubic-bezier(0.22, 1, 0.36, 1);
+
+  &--ready {
+    opacity: 1;
+  }
+}
+
+.dark .digital-twin-model-loader {
+  --loader-surface: rgb(var(--color-container-dark, 8 12 17));
+  --loader-copy: rgb(var(--color-typography-secondary-dark, 143 152 167));
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .digital-twin-model-canvas {
+    transition-duration: 120ms;
+  }
+
+  .digital-twin-model-loader {
+    transition-duration: 120ms;
+
+  }
+}

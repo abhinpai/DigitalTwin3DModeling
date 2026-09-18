@@ -1,4 +1,4 @@
-import { ThreejsCanvas } from '@digital-twin-threejs';
+import { ThreejsCanvas, type IThreejsCanvasProps } from '@digital-twin-threejs';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 const meta = {
@@ -42,4 +42,23 @@ export const Wireframe: Story = {
     gridStyle: 'dots',
     shadowsEnabled: false,
   },
+};
+
+export const LoadingViewState: Story = {
+  args: {
+    modelUrl: '/models/bangalore.glb',
+    initialViewportStateLoading: true,
+  },
+};
+
+export const LoadingViewStateDark: Story = {
+  args: {
+    modelUrl: '/models/bangalore.glb',
+    initialViewportStateLoading: true,
+  },
+  render: (args: IThreejsCanvasProps) => (
+    <div className="dark h-full w-full">
+      <ThreejsCanvas {...args} />
+    </div>
+  ),
 };

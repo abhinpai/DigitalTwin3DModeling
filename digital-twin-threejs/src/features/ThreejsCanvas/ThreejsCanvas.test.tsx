@@ -86,6 +86,8 @@ describe('ThreejsCanvas', () => {
       hiddenNodeIds: undefined,
       onStageTreeChange: undefined,
       onNodeSelect: undefined,
+      initialViewportStateLoading: false,
+      onLoadStateChange: undefined,
     });
     expect(screen.queryByLabelText('Three.js viewport placeholder')).not.toBeInTheDocument();
   });
@@ -110,6 +112,8 @@ describe('ThreejsCanvas', () => {
       hiddenNodeIds: undefined,
       onStageTreeChange: undefined,
       onNodeSelect: undefined,
+      initialViewportStateLoading: false,
+      onLoadStateChange: undefined,
     });
   });
 
@@ -133,6 +137,8 @@ describe('ThreejsCanvas', () => {
       hiddenNodeIds: undefined,
       onStageTreeChange: undefined,
       onNodeSelect: undefined,
+      initialViewportStateLoading: false,
+      onLoadStateChange: undefined,
     });
   });
 
@@ -156,6 +162,8 @@ describe('ThreejsCanvas', () => {
       hiddenNodeIds: undefined,
       onStageTreeChange: undefined,
       onNodeSelect: undefined,
+      initialViewportStateLoading: false,
+      onLoadStateChange: undefined,
     });
   });
 
@@ -179,6 +187,8 @@ describe('ThreejsCanvas', () => {
       hiddenNodeIds: undefined,
       onStageTreeChange: undefined,
       onNodeSelect: undefined,
+      initialViewportStateLoading: false,
+      onLoadStateChange: undefined,
     });
   });
 
@@ -211,6 +221,8 @@ describe('ThreejsCanvas', () => {
       hiddenNodeIds: undefined,
       onStageTreeChange: undefined,
       onNodeSelect: undefined,
+      initialViewportStateLoading: false,
+      onLoadStateChange: undefined,
     });
   });
 
@@ -234,6 +246,8 @@ describe('ThreejsCanvas', () => {
       hiddenNodeIds: undefined,
       onStageTreeChange: undefined,
       onNodeSelect: undefined,
+      initialViewportStateLoading: false,
+      onLoadStateChange: undefined,
     });
   });
 
@@ -266,6 +280,8 @@ describe('ThreejsCanvas', () => {
       hiddenNodeIds: ['hidden-id'],
       onStageTreeChange,
       onNodeSelect: undefined,
+      initialViewportStateLoading: false,
+      onLoadStateChange: undefined,
     });
   });
 
@@ -353,6 +369,8 @@ describe('ThreejsCanvas', () => {
       hiddenNodeIds: undefined,
       onStageTreeChange: undefined,
       onNodeSelect: undefined,
+      initialViewportStateLoading: false,
+      onLoadStateChange: undefined,
       initialViewportState,
     });
   });

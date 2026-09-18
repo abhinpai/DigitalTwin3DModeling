@@ -35,3 +35,22 @@ Phase 1 is implemented:
 - `lightingPreset` accepts `natural`, `directional`, `ambient`, or `hemisphere`.
 - `natural` combines `HemisphereLight` sky/ground fill with a shadow-capable `DirectionalLight` sun.
 - `ambient` and `hemisphere` are indirect-only modes, so shadow rendering is disabled for those presets.
+
+## Loading lifecycle
+
+When a model URL is present, the canvas displays an animated point-cloud building until the GLB is loaded and its initial camera has either been restored or fitted to the model. The real scene then fades in behind the loader.
+
+For an asynchronously fetched saved view, keep the transition active until the lookup completes:
+
+```tsx
+<ThreejsCanvas
+  modelUrl="/models/building.glb"
+  initialViewportState={savedView}
+  initialViewportStateLoading={isSavedViewLoading}
+  onLoadStateChange={(state) => {
+    // state is "loading", "ready", or "error"
+  }}
+/>
+```
+
+Leave `initialViewportStateLoading` unset when the model has no saved view. Load failures replace the animation with an accessible error message instead of leaving the viewport indefinitely busy.

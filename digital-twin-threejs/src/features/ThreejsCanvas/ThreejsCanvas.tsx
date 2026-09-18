@@ -1,5 +1,5 @@
 import { forwardRef, useImperativeHandle, useRef, type ForwardedRef, type ReactNode } from 'react';
-import { ThreeJsRender } from '../ThreeJsRender/ThreeJsRender';
+import type { ModelLoadState } from '../../components/ModelLoadingOverlay/ModelLoadingOverlay';
 import type { CameraMode } from '../../types/cameraMode';
 import type { GridStyle } from '../../types/gridStyle';
 import type { LightingPreset } from '../../types/lightingPreset';
@@ -7,6 +7,7 @@ import type { OrthoView } from '../../types/orthoView';
 import type { IStageTreeNode } from '../../types/stageTreeNode';
 import type { IViewportState } from '../../types/viewportState';
 import type { VisualMode } from '../../types/visualMode';
+import { ThreeJsRender } from '../ThreeJsRender/ThreeJsRender';
 
 export interface IThreejsCanvasHandle {
   captureViewportState: () => IViewportState | null;
@@ -27,10 +28,13 @@ export interface IThreejsCanvasProps {
   sunElevation?: number;
   shadowsEnabled?: boolean;
   initialViewportState?: IViewportState;
+  /** Set while an asynchronous initial viewport state is still being resolved. */
+  initialViewportStateLoading?: boolean;
   selectedNodeIds?: string[];
   hiddenNodeIds?: string[];
   onStageTreeChange?: (root: IStageTreeNode | null) => void;
   onNodeSelect?: (id: string | null) => void;
+  onLoadStateChange?: (state: ModelLoadState) => void;
   className?: string;
   children?: ReactNode;
 }
@@ -48,10 +52,12 @@ function ThreejsCanvasComponent({
   sunElevation,
   shadowsEnabled = false,
   initialViewportState,
+  initialViewportStateLoading = false,
   selectedNodeIds,
   hiddenNodeIds,
   onStageTreeChange,
   onNodeSelect,
+  onLoadStateChange,
   className,
   children,
 }: IThreejsCanvasProps, ref: ForwardedRef<IThreejsCanvasHandle>) {
@@ -77,10 +83,12 @@ function ThreejsCanvasComponent({
         sunElevation={sunElevation}
         shadowsEnabled={shadowsEnabled}
         initialViewportState={initialViewportState}
+        initialViewportStateLoading={initialViewportStateLoading}
         selectedNodeIds={selectedNodeIds}
         hiddenNodeIds={hiddenNodeIds}
         onStageTreeChange={onStageTreeChange}
         onNodeSelect={onNodeSelect}
+        onLoadStateChange={onLoadStateChange}
         className={className}
       />
     );
