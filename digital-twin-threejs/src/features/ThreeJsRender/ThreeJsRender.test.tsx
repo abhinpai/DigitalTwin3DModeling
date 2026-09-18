@@ -362,6 +362,21 @@ describe('ThreeJsRender', () => {
     expect(useModelGridMock).toHaveBeenCalledWith({
       scene: firstModel.scene,
       gridStyle: 'dots',
+      gridExtentScale: 1,
+    });
+  });
+
+  it('passes gridExtentScale through to model grid hook', () => {
+    const model = createMockScene();
+    gltfLoaderMock.mockReturnValue(model);
+
+    render(<ThreeJsRender modelUrl="/building-a.glb" gridStyle="lines" gridExtentScale={3} />);
+    emitObservedSize(1280, 720);
+
+    expect(useModelGridMock).toHaveBeenCalledWith({
+      scene: model.scene,
+      gridStyle: 'lines',
+      gridExtentScale: 3,
     });
   });
 
@@ -936,6 +951,8 @@ describe('ThreeJsRender', () => {
       cameraFov: 90,
       orthoView: 'front',
       gridStyle: 'none',
+      gridExtentScale: 1,
+      lightingPreset: 'natural',
       sunAzimuth: 45,
       sunElevation: 47,
       shadowsEnabled: false,
@@ -960,6 +977,8 @@ describe('ThreeJsRender', () => {
 
     expect(captured?.sunAzimuth).toBe(45);
     expect(captured?.sunElevation).toBe(47);
+    expect(captured?.gridExtentScale).toBe(1);
+    expect(captured?.lightingPreset).toBe('natural');
   });
 
   it('returns null from capture when controls ref is unavailable', () => {
@@ -1026,7 +1045,7 @@ describe('ThreeJsRender', () => {
     emitObservedSize(1280, 720);
 
     expect(useVisualModeMock).toHaveBeenCalledWith({ scene: model.scene, visualMode: 'wire' });
-    expect(useModelGridMock).toHaveBeenCalledWith({ scene: model.scene, gridStyle: 'dots' });
+    expect(useModelGridMock).toHaveBeenCalledWith({ scene: model.scene, gridStyle: 'dots', gridExtentScale: 1 });
     expect(useShadowCatcherMock).toHaveBeenLastCalledWith(expect.objectContaining({ shadowsEnabled: true }));
 
     rerender(
@@ -1045,7 +1064,7 @@ describe('ThreeJsRender', () => {
     );
 
     expect(useVisualModeMock).toHaveBeenLastCalledWith({ scene: model.scene, visualMode: 'ghost' });
-    expect(useModelGridMock).toHaveBeenLastCalledWith({ scene: model.scene, gridStyle: 'lines' });
+    expect(useModelGridMock).toHaveBeenLastCalledWith({ scene: model.scene, gridStyle: 'lines', gridExtentScale: 1 });
     expect(useShadowCatcherMock).toHaveBeenLastCalledWith(expect.objectContaining({ shadowsEnabled: false }));
     expect(perspectiveCameraMock).toHaveBeenLastCalledWith(expect.objectContaining({ fov: 80 }));
     expect(orthographicCameraMock).not.toHaveBeenCalled();

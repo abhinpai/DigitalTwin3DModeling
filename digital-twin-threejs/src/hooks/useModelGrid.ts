@@ -3,6 +3,8 @@ import { Box3, BufferAttribute, BufferGeometry, Points, PointsMaterial, Vector3,
 import type { GridStyle } from '../types/gridStyle';
 
 const GRID_EXTENT_PADDING_FACTOR = 1.5;
+const MIN_GRID_EXTENT_SCALE = 0.5;
+const MAX_GRID_EXTENT_SCALE = 5;
 const GRID_CELL_DIVISOR = 18;
 const MIN_GRID_EXTENT = 12;
 const MIN_GRID_CELL_SIZE = 0.25;
@@ -38,9 +40,10 @@ export type ModelGrid =
 export interface IUseModelGridParams {
   scene: Object3D;
   gridStyle: GridStyle;
+  gridExtentScale?: number;
 }
 
-function createGridConfig(scene: Object3D): IModelGridConfig {
+function createGridConfig(scene: Object3D, gridExtentScale: number): IModelGridConfig {
   const box = new Box3();
   const size = new Vector3();
   const center = new Vector3();
@@ -51,7 +54,8 @@ function createGridConfig(scene: Object3D): IModelGridConfig {
   box.getCenter(center);
 
   const maxDimension = Math.max(size.x, size.y, size.z, 1);
-  const extent = Math.max(maxDimension * GRID_EXTENT_PADDING_FACTOR, MIN_GRID_EXTENT);
+  const baseExtent = Math.max(maxDimension * GRID_EXTENT_PADDING_FACTOR, MIN_GRID_EXTENT);
+  const extent = baseExtent * clamp(gridExtentScale, MIN_GRID_EXTENT_SCALE, MAX_GRID_EXTENT_SCALE);
   const cellSize = clamp(maxDimension / GRID_CELL_DIVISOR, MIN_GRID_CELL_SIZE, MAX_GRID_CELL_SIZE);
 
   return {
@@ -95,13 +99,13 @@ function createDotsPoints({ extent, cellSize }: IModelGridConfig) {
   return new Points(geometry, material);
 }
 
-export function useModelGrid({ scene, gridStyle }: IUseModelGridParams): ModelGrid | null {
+export function useModelGrid({ scene, gridStyle, gridExtentScale = 1 }: IUseModelGridParams): ModelGrid | null {
   const grid = useMemo(() => {
     if (gridStyle === 'none') {
       return null;
     }
 
-    const config = createGridConfig(scene);
+    const config = createGridConfig(scene, gridExtentScale);
 
     if (gridStyle === 'lines') {
       return {
@@ -117,7 +121,7 @@ export function useModelGrid({ scene, gridStyle }: IUseModelGridParams): ModelGr
       config,
       points: createDotsPoints(config),
     };
-  }, [scene, gridStyle]);
+  }, [gridExtentScale, gridStyle, scene]);
 
   useEffect(() => {
     if (!grid || grid.style !== 'dots') {

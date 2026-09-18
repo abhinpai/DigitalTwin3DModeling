@@ -15,6 +15,7 @@ import { useSunLighting } from '../../hooks/useSunLighting';
 import { useVisualMode } from '../../hooks/useVisualMode';
 import type { CameraMode } from '../../types/cameraMode';
 import type { GridStyle } from '../../types/gridStyle';
+import type { LightingPreset } from '../../types/lightingPreset';
 import type { OrthoView } from '../../types/orthoView';
 import type { IStageTreeNode } from '../../types/stageTreeNode';
 import type { IViewportState } from '../../types/viewportState';
@@ -77,6 +78,8 @@ export interface IThreeJsRenderProps {
   cameraFov?: number;
   orthoView?: OrthoView;
   gridStyle?: GridStyle;
+  gridExtentScale?: number;
+  lightingPreset?: LightingPreset;
   sunAzimuth?: number;
   sunElevation?: number;
   shadowsEnabled?: boolean;
@@ -84,7 +87,7 @@ export interface IThreeJsRenderProps {
    * Saved viewport state used only for camera pose restore (`camera.position/target/zoom`).
    *
    * For all other fields (`visualMode`, `cameraMode`, `cameraFov`, `orthoView`, `gridStyle`,
-   * `sunAzimuth`, `sunElevation`, `shadowsEnabled`), read values from the saved state in
+   * `gridExtentScale`, `lightingPreset`, `sunAzimuth`, `sunElevation`, `shadowsEnabled`), read values from the saved state in
    * consumer code and pass them via this component's normal controlled props.
    */
   initialViewportState?: IViewportState;
@@ -94,29 +97,31 @@ export interface IThreeJsRenderProps {
   onNodeSelect?: (id: string | null) => void;
 }
 
-interface ILoadedModelProps extends Pick<IThreeJsRenderProps, 'modelUrl' | 'visualMode' | 'cameraMode' | 'orthoView' | 'gridStyle' | 'sunAzimuth' | 'sunElevation' | 'shadowsEnabled' | 'selectedNodeIds' | 'hiddenNodeIds' | 'onStageTreeChange' | 'onNodeSelect'> {
+interface ILoadedModelProps extends Pick<IThreeJsRenderProps, 'modelUrl' | 'visualMode' | 'cameraMode' | 'orthoView' | 'gridStyle' | 'gridExtentScale' | 'lightingPreset' | 'sunAzimuth' | 'sunElevation' | 'shadowsEnabled' | 'selectedNodeIds' | 'hiddenNodeIds' | 'onStageTreeChange' | 'onNodeSelect'> {
   initialCameraState?: IViewportState['camera'];
   orbitControlsRef: RefObject<IOrbitControlsApi | null>;
   pointerSelectionGestureRef: MutableRefObject<IPointerSelectionGestureState>;
 }
 
-function LoadedModel({ modelUrl, visualMode = 'original', cameraMode = 'persp', orthoView = 'front', gridStyle = 'none', sunAzimuth, sunElevation, shadowsEnabled = false, selectedNodeIds, hiddenNodeIds, onStageTreeChange, onNodeSelect, initialCameraState, orbitControlsRef, pointerSelectionGestureRef }: ILoadedModelProps) {
+function LoadedModel({ modelUrl, visualMode = 'original', cameraMode = 'persp', orthoView = 'front', gridStyle = 'none', gridExtentScale = 1, lightingPreset = 'natural', sunAzimuth, sunElevation, shadowsEnabled = false, selectedNodeIds, hiddenNodeIds, onStageTreeChange, onNodeSelect, initialCameraState, orbitControlsRef, pointerSelectionGestureRef }: ILoadedModelProps) {
   const gltf = useModelLoader(modelUrl);
   const { camera, size, scene: rootScene } = useThree();
   const sunTarget = useMemo(() => new Object3D(), []);
   const effectiveOrthoView = cameraMode === 'ortho' ? orthoView : 'front';
   const stageTree = useStageTree({ scene: gltf.scene });
-  const modelGrid = useModelGrid({ scene: gltf.scene, gridStyle });
+  const directionalLightingEnabled = lightingPreset === 'natural' || lightingPreset === 'directional';
+  const effectiveShadowsEnabled = shadowsEnabled && directionalLightingEnabled;
+  const modelGrid = useModelGrid({ scene: gltf.scene, gridStyle, gridExtentScale });
   const sunLighting = useSunLighting({
     scene: gltf.scene,
     sunAzimuth,
     sunElevation,
-    shadowsEnabled,
+    shadowsEnabled: effectiveShadowsEnabled,
   });
   const shadowCatcher = useShadowCatcher({
     maxDimension: sunLighting.maxDimension,
     shadowGroundPosition: sunLighting.shadowGroundPosition,
-    shadowsEnabled,
+    shadowsEnabled: effectiveShadowsEnabled,
   });
 
   useVisualMode({ scene: gltf.scene, visualMode });
@@ -157,8 +162,8 @@ function LoadedModel({ modelUrl, visualMode = 'original', cameraMode = 'persp', 
       return;
     }
 
-    modelGrid.points.receiveShadow = shadowsEnabled;
-  }, [modelGrid, shadowsEnabled]);
+    modelGrid.points.receiveShadow = effectiveShadowsEnabled;
+  }, [effectiveShadowsEnabled, modelGrid]);
 
   useEffect(() => {
     onStageTreeChange?.(stageTree);
@@ -182,20 +187,34 @@ function LoadedModel({ modelUrl, visualMode = 'original', cameraMode = 'persp', 
 
   return (
     <>
-      {/* eslint-disable react/no-unknown-property -- R3F JSX light props are not DOM props. */}
-      <directionalLight
-        position={sunLighting.sunPosition}
-        intensity={1}
-        target={sunTarget}
-        castShadow={shadowsEnabled}
-        shadow-camera-left={sunLighting.shadowCamera.left}
-        shadow-camera-right={sunLighting.shadowCamera.right}
-        shadow-camera-top={sunLighting.shadowCamera.top}
-        shadow-camera-bottom={sunLighting.shadowCamera.bottom}
-        shadow-camera-near={sunLighting.shadowCamera.near}
-        shadow-camera-far={sunLighting.shadowCamera.far}
-      />
-      {/* eslint-enable react/no-unknown-property */}
+      {lightingPreset === 'ambient' || lightingPreset === 'directional' ? (
+        // eslint-disable-next-line react/no-unknown-property -- R3F JSX light props are not DOM props.
+        <ambientLight intensity={lightingPreset === 'ambient' ? 1.15 : 0.28} />
+      ) : null}
+
+      {lightingPreset === 'natural' || lightingPreset === 'hemisphere' ? (
+        // eslint-disable-next-line react/no-unknown-property -- R3F JSX light props are not DOM props.
+        <hemisphereLight color={0xbfdcff} groundColor={0x76624a} intensity={lightingPreset === 'natural' ? 0.8 : 1.25} />
+      ) : null}
+
+      {directionalLightingEnabled ? (
+        <>
+          {/* eslint-disable react/no-unknown-property -- R3F JSX light props are not DOM props. */}
+          <directionalLight
+            position={sunLighting.sunPosition}
+            intensity={lightingPreset === 'natural' ? 1.05 : 1.2}
+            target={sunTarget}
+            castShadow={effectiveShadowsEnabled}
+            shadow-camera-left={sunLighting.shadowCamera.left}
+            shadow-camera-right={sunLighting.shadowCamera.right}
+            shadow-camera-top={sunLighting.shadowCamera.top}
+            shadow-camera-bottom={sunLighting.shadowCamera.bottom}
+            shadow-camera-near={sunLighting.shadowCamera.near}
+            shadow-camera-far={sunLighting.shadowCamera.far}
+          />
+          {/* eslint-enable react/no-unknown-property */}
+        </>
+      ) : null}
 
       {modelGrid?.style === 'lines' ? (
         <Grid
@@ -205,7 +224,7 @@ function LoadedModel({ modelUrl, visualMode = 'original', cameraMode = 'persp', 
           sectionSize={modelGrid.sectionSize}
           fadeDistance={modelGrid.fadeDistance}
           infiniteGrid={false}
-          receiveShadow={shadowsEnabled}
+          receiveShadow={effectiveShadowsEnabled}
         />
       ) : null}
 
@@ -233,6 +252,8 @@ function ThreeJsRenderComponent({
   cameraFov = 50,
   orthoView = 'front',
   gridStyle = 'none',
+  gridExtentScale = 1,
+  lightingPreset = 'natural',
   sunAzimuth,
   sunElevation,
   shadowsEnabled = false,
@@ -284,6 +305,8 @@ function ThreeJsRenderComponent({
         cameraFov,
         orthoView,
         gridStyle,
+        gridExtentScale,
+        lightingPreset,
         sunAzimuth: sunAzimuth ?? 45,
         sunElevation: sunElevation ?? 47,
         shadowsEnabled,
@@ -294,7 +317,7 @@ function ThreeJsRenderComponent({
         },
       } satisfies IViewportState;
     },
-  }), [cameraFov, cameraMode, gridStyle, orthoView, shadowsEnabled, sunAzimuth, sunElevation, visualMode]);
+  }), [cameraFov, cameraMode, gridExtentScale, gridStyle, lightingPreset, orthoView, shadowsEnabled, sunAzimuth, sunElevation, visualMode]);
 
   const handleCanvasPointerDown = useCallback((event: { nativeEvent?: unknown; clientX?: number; clientY?: number }) => {
     const nativePosition = getPointerPositionFromNativeEvent(event.nativeEvent);
@@ -349,14 +372,12 @@ function ThreeJsRenderComponent({
       >
       {canRenderCanvas ? (
         <Canvas
-          shadows={shadowsEnabled}
+          shadows={shadowsEnabled && (lightingPreset === 'natural' || lightingPreset === 'directional')}
           onPointerDown={handleCanvasPointerDown}
           onPointerUp={handleCanvasPointerUp}
           onPointerMissed={handlePointerMissed}
         >
           {cameraMode === 'ortho' ? <OrthographicCamera makeDefault position={INITIAL_CAMERA_POSITION} /> : <PerspectiveCamera makeDefault fov={cameraFov} position={INITIAL_CAMERA_POSITION} />}
-          {/* eslint-disable-next-line react/no-unknown-property -- R3F JSX light props are not DOM props. */}
-          <ambientLight intensity={0.5} />
           <Suspense fallback={null}>
             <LoadedModel
               modelUrl={modelUrl}
@@ -364,6 +385,8 @@ function ThreeJsRenderComponent({
               cameraMode={cameraMode}
               orthoView={orthoView}
               gridStyle={gridStyle}
+              gridExtentScale={gridExtentScale}
+              lightingPreset={lightingPreset}
               sunAzimuth={sunAzimuth}
               sunElevation={sunElevation}
               shadowsEnabled={shadowsEnabled}

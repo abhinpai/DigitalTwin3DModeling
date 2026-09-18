@@ -2,6 +2,7 @@ import { forwardRef, useImperativeHandle, useRef, type ForwardedRef, type ReactN
 import { ThreeJsRender } from '../ThreeJsRender/ThreeJsRender';
 import type { CameraMode } from '../../types/cameraMode';
 import type { GridStyle } from '../../types/gridStyle';
+import type { LightingPreset } from '../../types/lightingPreset';
 import type { OrthoView } from '../../types/orthoView';
 import type { IStageTreeNode } from '../../types/stageTreeNode';
 import type { IViewportState } from '../../types/viewportState';
@@ -18,6 +19,10 @@ export interface IThreejsCanvasProps {
   cameraFov?: number;
   orthoView?: OrthoView;
   gridStyle?: GridStyle;
+  /** Multiplies the model-relative grid coverage. Values are clamped from 0.5 to 5. */
+  gridExtentScale?: number;
+  /** Selects the active Three.js light rig. */
+  lightingPreset?: LightingPreset;
   sunAzimuth?: number;
   sunElevation?: number;
   shadowsEnabled?: boolean;
@@ -37,6 +42,8 @@ function ThreejsCanvasComponent({
   cameraFov = 50,
   orthoView = 'front',
   gridStyle = 'none',
+  gridExtentScale = 1,
+  lightingPreset = 'natural',
   sunAzimuth,
   sunElevation,
   shadowsEnabled = false,
@@ -64,6 +71,8 @@ function ThreejsCanvasComponent({
         cameraFov={cameraFov}
         orthoView={orthoView}
         gridStyle={gridStyle}
+        gridExtentScale={gridExtentScale}
+        lightingPreset={lightingPreset}
         sunAzimuth={sunAzimuth}
         sunElevation={sunElevation}
         shadowsEnabled={shadowsEnabled}

@@ -21,6 +21,8 @@ vi.mock('../ThreeJsRender/ThreeJsRender', () => {
     cameraFov?: number;
     orthoView?: string;
     gridStyle?: string;
+    gridExtentScale?: number;
+    lightingPreset?: string;
     sunAzimuth?: number;
     sunElevation?: number;
     shadowsEnabled?: boolean;
@@ -75,6 +77,8 @@ describe('ThreejsCanvas', () => {
       cameraFov: 50,
       orthoView: 'front',
       gridStyle: 'none',
+      gridExtentScale: 1,
+      lightingPreset: 'natural',
       sunAzimuth: undefined,
       sunElevation: undefined,
       shadowsEnabled: false,
@@ -97,6 +101,8 @@ describe('ThreejsCanvas', () => {
       cameraFov: 50,
       orthoView: 'front',
       gridStyle: 'none',
+      gridExtentScale: 1,
+      lightingPreset: 'natural',
       sunAzimuth: undefined,
       sunElevation: undefined,
       shadowsEnabled: false,
@@ -118,6 +124,8 @@ describe('ThreejsCanvas', () => {
       cameraFov: 50,
       orthoView: 'front',
       gridStyle: 'none',
+      gridExtentScale: 1,
+      lightingPreset: 'natural',
       sunAzimuth: undefined,
       sunElevation: undefined,
       shadowsEnabled: false,
@@ -139,6 +147,8 @@ describe('ThreejsCanvas', () => {
       cameraFov: 50,
       orthoView: 'top',
       gridStyle: 'none',
+      gridExtentScale: 1,
+      lightingPreset: 'natural',
       sunAzimuth: undefined,
       sunElevation: undefined,
       shadowsEnabled: false,
@@ -160,6 +170,8 @@ describe('ThreejsCanvas', () => {
       cameraFov: 50,
       orthoView: 'front',
       gridStyle: 'dots',
+      gridExtentScale: 1,
+      lightingPreset: 'natural',
       sunAzimuth: undefined,
       sunElevation: undefined,
       shadowsEnabled: false,
@@ -168,6 +180,15 @@ describe('ThreejsCanvas', () => {
       onStageTreeChange: undefined,
       onNodeSelect: undefined,
     });
+  });
+
+  it('forwards grid extent and lighting preset to ThreeJsRender', () => {
+    render(<ThreejsCanvas modelUrl="/building-a.glb" gridExtentScale={2.5} lightingPreset="hemisphere" />);
+
+    expect(threeJsRenderMock).toHaveBeenCalledWith(expect.objectContaining({
+      gridExtentScale: 2.5,
+      lightingPreset: 'hemisphere',
+    }));
   });
 
   it('forwards sun and shadow controls to ThreeJsRender', () => {
@@ -181,6 +202,8 @@ describe('ThreejsCanvas', () => {
       cameraFov: 50,
       orthoView: 'front',
       gridStyle: 'none',
+      gridExtentScale: 1,
+      lightingPreset: 'natural',
       sunAzimuth: 120,
       sunElevation: 35,
       shadowsEnabled: true,
@@ -202,6 +225,8 @@ describe('ThreejsCanvas', () => {
       cameraFov: 80,
       orthoView: 'front',
       gridStyle: 'none',
+      gridExtentScale: 1,
+      lightingPreset: 'natural',
       sunAzimuth: undefined,
       sunElevation: undefined,
       shadowsEnabled: false,
@@ -232,6 +257,8 @@ describe('ThreejsCanvas', () => {
       cameraFov: 50,
       orthoView: 'front',
       gridStyle: 'none',
+      gridExtentScale: 1,
+      lightingPreset: 'natural',
       sunAzimuth: undefined,
       sunElevation: undefined,
       shadowsEnabled: false,
@@ -255,6 +282,8 @@ describe('ThreejsCanvas', () => {
       cameraFov: 50,
       orthoView: 'front',
       gridStyle: 'none',
+      gridExtentScale: 1,
+      lightingPreset: 'natural',
       sunAzimuth: undefined,
       sunElevation: undefined,
       shadowsEnabled: false,
@@ -315,6 +344,8 @@ describe('ThreejsCanvas', () => {
       cameraFov: 50,
       orthoView: 'front',
       gridStyle: 'none',
+      gridExtentScale: 1,
+      lightingPreset: 'natural',
       sunAzimuth: undefined,
       sunElevation: undefined,
       shadowsEnabled: false,

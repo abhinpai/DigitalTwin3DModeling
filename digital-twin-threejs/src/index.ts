@@ -8,5 +8,6 @@ export type { VisualMode } from './types/visualMode';
 export type { CameraMode } from './types/cameraMode';
 export type { OrthoView } from './types/orthoView';
 export type { GridStyle } from './types/gridStyle';
+export type { LightingPreset } from './types/lightingPreset';
 export type { IStageTreeNode } from './types/stageTreeNode';
 export type { IViewportState } from './types/viewportState';

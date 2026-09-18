@@ -7,11 +7,12 @@ import { useModelGrid, type ModelGrid } from './useModelGrid';
 interface IHookHarnessProps {
   scene: Object3D;
   gridStyle: GridStyle;
+  gridExtentScale?: number;
   onGrid: (grid: ModelGrid | null) => void;
 }
 
-function HookHarness({ scene, gridStyle, onGrid }: IHookHarnessProps) {
-  const grid = useModelGrid({ scene, gridStyle });
+function HookHarness({ scene, gridStyle, gridExtentScale, onGrid }: IHookHarnessProps) {
+  const grid = useModelGrid({ scene, gridStyle, gridExtentScale });
   onGrid(grid);
   return null;
 }
@@ -117,6 +118,22 @@ describe('useModelGrid', () => {
 
     expect(flatWideGrid.config.extent).toBeCloseTo(60 * 1.5, 5);
     expect(flatWideGrid.config.cellSize).toBeCloseTo(60 / 18, 5);
+  });
+
+  it('scales and clamps the grid extent without changing cell density', () => {
+    const scene = createBoxScene([20, 10, 12]);
+    const capture = vi.fn();
+
+    const { rerender } = render(<HookHarness scene={scene} gridStyle="lines" gridExtentScale={2.5} onGrid={capture} />);
+    rerender(<HookHarness scene={scene} gridStyle="lines" gridExtentScale={10} onGrid={capture} />);
+
+    const [extendedGrid, clampedGrid] = capture.mock.calls
+      .map(([value]) => value as ModelGrid)
+      .filter((value): value is Extract<ModelGrid, { style: 'lines' }> => value?.style === 'lines');
+
+    expect(extendedGrid.config.extent).toBeCloseTo(75, 5);
+    expect(clampedGrid.config.extent).toBeCloseTo(150, 5);
+    expect(extendedGrid.config.cellSize).toBeCloseTo(clampedGrid.config.cellSize, 5);
   });
 
   it('disposes dots geometry and material on style change, model swap, and unmount', () => {

@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { Button, Input, Label, Select, SelectOption, Toggle } from '@forge/common';
 import { useRef, useState } from 'react';
-import type { CameraMode, GridStyle, IThreejsCanvasHandle, IViewportState, OrthoView, VisualMode } from '../../index';
+import type { CameraMode, GridStyle, IThreejsCanvasHandle, IViewportState, LightingPreset, OrthoView, VisualMode } from '../../index';
 import { ThreejsCanvas } from './ThreejsCanvas';
 
 const meta: Meta<typeof ThreejsCanvas> = {
@@ -53,6 +53,13 @@ const GRID_STYLE_OPTIONS: Array<{ value: GridStyle; label: string }> = [
   { value: 'dots', label: 'Dots' },
 ];
 
+const LIGHTING_PRESET_OPTIONS: Array<{ value: LightingPreset; label: string }> = [
+  { value: 'natural', label: 'Natural daylight' },
+  { value: 'directional', label: 'Directional sun' },
+  { value: 'ambient', label: 'Ambient fill' },
+  { value: 'hemisphere', label: 'Sky hemisphere' },
+];
+
 const CAMERA_FOV_MIN = 20;
 const CAMERA_FOV_MAX = 120;
 
@@ -63,6 +70,8 @@ function BuildingSwitcherStory() {
   const [cameraFov, setCameraFov] = useState(50);
   const [orthoView, setOrthoView] = useState<OrthoView>('front');
   const [gridStyle, setGridStyle] = useState<GridStyle>('none');
+  const [gridExtentScale, setGridExtentScale] = useState(1);
+  const [lightingPreset, setLightingPreset] = useState<LightingPreset>('natural');
   const [sunAzimuth, setSunAzimuth] = useState(45);
   const [sunElevation, setSunElevation] = useState(47);
   const [shadowsEnabled, setShadowsEnabled] = useState(false);
@@ -132,6 +141,36 @@ function BuildingSwitcherStory() {
             }}
           >
             {GRID_STYLE_OPTIONS.map((option) => (
+              <SelectOption key={option.value} value={option.value} label={option.label} />
+            ))}
+          </Select>
+
+          {gridStyle !== 'none' ? (
+            <div style={{ display: 'grid', gap: 4 }}>
+              <Label htmlFor="threejs-canvas-grid-extent">Grid extent: {gridExtentScale.toFixed(2)}x</Label>
+              <Input
+                id="threejs-canvas-grid-extent"
+                type="range"
+                min={0.5}
+                max={5}
+                step={0.25}
+                value={gridExtentScale}
+                onChange={(event) => {
+                  setGridExtentScale(Number(event.target.value));
+                }}
+              />
+            </div>
+          ) : null}
+
+          <Select
+            id="threejs-canvas-lighting-preset"
+            size="small"
+            value={lightingPreset}
+            onChange={(event) => {
+              setLightingPreset(event.target.value as LightingPreset);
+            }}
+          >
+            {LIGHTING_PRESET_OPTIONS.map((option) => (
               <SelectOption key={option.value} value={option.value} label={option.label} />
             ))}
           </Select>
@@ -258,6 +297,8 @@ function BuildingSwitcherStory() {
         cameraFov={cameraFov}
         orthoView={orthoView}
         gridStyle={gridStyle}
+        gridExtentScale={gridExtentScale}
+        lightingPreset={lightingPreset}
         sunAzimuth={sunAzimuth}
         sunElevation={sunElevation}
         shadowsEnabled={shadowsEnabled}

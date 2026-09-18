@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { App } from './App';
-import './styles.css';
+import './styles.scss';
 
 const meta = {
   title: 'Workbench/Digital Twin',
