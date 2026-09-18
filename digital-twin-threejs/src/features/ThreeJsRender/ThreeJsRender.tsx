@@ -1,4 +1,4 @@
-import { Grid, OrbitControls, OrthographicCamera, PerspectiveCamera } from '@react-three/drei';
+import { Cloud, Grid, OrbitControls, OrthographicCamera, PerspectiveCamera, Sky } from '@react-three/drei';
 import type { ThreeEvent } from '@react-three/fiber';
 import { Canvas, useThree } from '@react-three/fiber';
 import { Component, Suspense, forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type ErrorInfo, type ForwardedRef, type MutableRefObject, type ReactNode, type RefObject } from 'react';
@@ -23,6 +23,8 @@ import type { OrthoView } from '../../types/orthoView';
 import type { IStageTreeNode } from '../../types/stageTreeNode';
 import type { IViewportState } from '../../types/viewportState';
 import type { VisualMode } from '../../types/visualMode';
+import type { ITimeOfDaySettings } from '../../types/timeOfDay';
+import { getSolarState } from '../../utils/solarPosition';
 import type { IThreejsCanvasHandle } from '../ThreejsCanvas/ThreejsCanvas';
 
 const INITIAL_CAMERA_POSITION: [number, number, number] = [0, 0, 1];
@@ -87,11 +89,12 @@ export interface IThreeJsRenderProps {
   sunAzimuth?: number;
   sunElevation?: number;
   shadowsEnabled?: boolean;
+  timeOfDay?: ITimeOfDaySettings;
   /**
    * Saved viewport state used only for camera pose restore (`camera.position/target/zoom`).
    *
    * For all other fields (`visualMode`, `cameraMode`, `cameraFov`, `orthoView`, `gridStyle`,
-   * `gridExtentScale`, `lightingPreset`, `sunAzimuth`, `sunElevation`, `shadowsEnabled`), read values from the saved state in
+   * `gridExtentScale`, `lightingPreset`, `sunAzimuth`, `sunElevation`, `shadowsEnabled`, `timeOfDay`), read values from the saved state in
    * consumer code and pass them via this component's normal controlled props.
    */
   initialViewportState?: IViewportState;
@@ -104,28 +107,32 @@ export interface IThreeJsRenderProps {
   onLoadStateChange?: (state: ModelLoadState) => void;
 }
 
-interface ILoadedModelProps extends Pick<IThreeJsRenderProps, 'modelUrl' | 'visualMode' | 'cameraMode' | 'orthoView' | 'gridStyle' | 'gridExtentScale' | 'environmentPreset' | 'lightingPreset' | 'sunAzimuth' | 'sunElevation' | 'shadowsEnabled' | 'selectedNodeIds' | 'hiddenNodeIds' | 'onStageTreeChange' | 'onNodeSelect'> {
+interface ILoadedModelProps extends Pick<IThreeJsRenderProps, 'modelUrl' | 'visualMode' | 'cameraMode' | 'orthoView' | 'gridStyle' | 'gridExtentScale' | 'environmentPreset' | 'lightingPreset' | 'sunAzimuth' | 'sunElevation' | 'shadowsEnabled' | 'timeOfDay' | 'selectedNodeIds' | 'hiddenNodeIds' | 'onStageTreeChange' | 'onNodeSelect'> {
   initialCameraState?: IViewportState['camera'];
   orbitControlsRef: RefObject<IOrbitControlsApi | null>;
   pointerSelectionGestureRef: MutableRefObject<IPointerSelectionGestureState>;
   onReady: () => void;
 }
 
-function LoadedModel({ modelUrl, visualMode = 'original', cameraMode = 'persp', orthoView = 'front', gridStyle = 'none', gridExtentScale = 1, environmentPreset = 'studio', lightingPreset = 'natural', sunAzimuth, sunElevation, shadowsEnabled = false, selectedNodeIds, hiddenNodeIds, onStageTreeChange, onNodeSelect, initialCameraState, orbitControlsRef, pointerSelectionGestureRef, onReady }: ILoadedModelProps) {
+function LoadedModel({ modelUrl, visualMode = 'original', cameraMode = 'persp', orthoView = 'front', gridStyle = 'none', gridExtentScale = 1, environmentPreset = 'studio', lightingPreset = 'natural', sunAzimuth, sunElevation, shadowsEnabled = false, timeOfDay, selectedNodeIds, hiddenNodeIds, onStageTreeChange, onNodeSelect, initialCameraState, orbitControlsRef, pointerSelectionGestureRef, onReady }: ILoadedModelProps) {
   const gltf = useModelLoader(modelUrl);
   const { camera, size, scene: rootScene } = useThree();
   const sunTarget = useMemo(() => new Object3D(), []);
   const effectiveOrthoView = cameraMode === 'ortho' ? orthoView : 'front';
   const stageTree = useStageTree({ scene: gltf.scene });
   const directionalLightingEnabled = lightingPreset === 'natural' || lightingPreset === 'directional';
-  const effectiveShadowsEnabled = shadowsEnabled && directionalLightingEnabled;
+  const solarState = useMemo(() => timeOfDay ? getSolarState(timeOfDay) : null, [timeOfDay]);
+  const automaticSun = timeOfDay?.mode === 'automatic' && solarState !== null;
+  const effectiveSunAzimuth = automaticSun ? solarState.threeAzimuth : sunAzimuth;
+  const effectiveSunElevation = automaticSun ? solarState.elevation : sunElevation;
+  const effectiveShadowsEnabled = shadowsEnabled && directionalLightingEnabled && (!automaticSun || solarState.elevation > 0);
   const effectiveGridStyle = environmentPreset === 'grid' ? 'lines' : environmentPreset === 'points' ? 'dots' : gridStyle;
   const modelGrid = useModelGrid({ scene: gltf.scene, gridStyle: effectiveGridStyle, gridExtentScale });
   const environmentBase = useEnvironmentBase({ scene: gltf.scene, preset: environmentPreset, extentScale: gridExtentScale });
   const sunLighting = useSunLighting({
     scene: gltf.scene,
-    sunAzimuth,
-    sunElevation,
+    sunAzimuth: effectiveSunAzimuth,
+    sunElevation: effectiveSunElevation,
     shadowsEnabled: effectiveShadowsEnabled,
   });
   const shadowCatcher = useShadowCatcher({
@@ -198,14 +205,39 @@ function LoadedModel({ modelUrl, visualMode = 'original', cameraMode = 'persp', 
 
   return (
     <>
+      {timeOfDay ? (
+        // eslint-disable-next-line react/no-unknown-property -- Drei Sky props are not DOM props.
+        <Sky
+          distance={Math.max(sunLighting.maxDimension * 80, 1000)}
+          sunPosition={sunLighting.skyPosition}
+          turbidity={solarState?.skyTurbidity ?? 3}
+          rayleigh={solarState?.skyRayleigh ?? 2}
+          mieCoefficient={solarState?.skyMieCoefficient ?? 0.005}
+          mieDirectionalG={solarState?.skyMieDirectionalG ?? 0.72}
+        />
+      ) : null}
+
+      {timeOfDay && timeOfDay.cloudsEnabled !== false ? (
+        <Cloud
+          position={[sunLighting.targetPosition[0], sunLighting.targetPosition[1] + sunLighting.maxDimension * 2.5, sunLighting.targetPosition[2]]}
+          bounds={[sunLighting.maxDimension * 5, sunLighting.maxDimension * 0.8, sunLighting.maxDimension * 5]}
+          color={automaticSun && solarState.elevation < 8 ? '#8c99aa' : '#dfe8f2'}
+          opacity={automaticSun && solarState.elevation < -6 ? 0.08 : 0.17}
+          segments={10}
+          volume={4}
+          speed={0.08}
+          fade={sunLighting.maxDimension * 3}
+        />
+      ) : null}
+
       {lightingPreset === 'ambient' || lightingPreset === 'directional' ? (
         // eslint-disable-next-line react/no-unknown-property -- R3F JSX light props are not DOM props.
-        <ambientLight intensity={lightingPreset === 'ambient' ? 1.15 : 0.28} />
+        <ambientLight intensity={lightingPreset === 'ambient' ? 1.15 : solarState?.ambientIntensity ?? 0.28} color={automaticSun ? 0x9eb7d1 : 0xffffff} />
       ) : null}
 
       {lightingPreset === 'natural' || lightingPreset === 'hemisphere' ? (
         // eslint-disable-next-line react/no-unknown-property -- R3F JSX light props are not DOM props.
-        <hemisphereLight color={0xbfdcff} groundColor={0x76624a} intensity={lightingPreset === 'natural' ? 0.8 : 1.25} />
+        <hemisphereLight color={automaticSun ? 0x91b8e8 : 0xbfdcff} groundColor={automaticSun ? 0x252b3b : 0x76624a} intensity={lightingPreset === 'natural' ? solarState?.ambientIntensity ?? 0.8 : 1.25} />
       ) : null}
 
       {directionalLightingEnabled ? (
@@ -213,7 +245,8 @@ function LoadedModel({ modelUrl, visualMode = 'original', cameraMode = 'persp', 
           {/* eslint-disable react/no-unknown-property -- R3F JSX light props are not DOM props. */}
           <directionalLight
             position={sunLighting.sunPosition}
-            intensity={lightingPreset === 'natural' ? 1.05 : 1.2}
+            color={automaticSun && solarState.elevation < 8 ? 0xffb879 : 0xfff4df}
+            intensity={automaticSun ? solarState.sunIntensity : lightingPreset === 'natural' ? 1.05 : 1.2}
             target={sunTarget}
             castShadow={effectiveShadowsEnabled}
             shadow-camera-left={sunLighting.shadowCamera.left}
@@ -299,6 +332,7 @@ function ThreeJsRenderComponent({
   sunAzimuth,
   sunElevation,
   shadowsEnabled = false,
+  timeOfDay,
   initialViewportState,
   initialViewportStateLoading = false,
   selectedNodeIds,
@@ -372,6 +406,7 @@ function ThreeJsRenderComponent({
         gridExtentScale,
         environmentPreset,
         lightingPreset,
+        timeOfDay,
         sunAzimuth: sunAzimuth ?? 45,
         sunElevation: sunElevation ?? 47,
         shadowsEnabled,
@@ -382,7 +417,7 @@ function ThreeJsRenderComponent({
         },
       } satisfies IViewportState;
     },
-  }), [cameraFov, cameraMode, environmentPreset, gridExtentScale, gridStyle, lightingPreset, orthoView, shadowsEnabled, sunAzimuth, sunElevation, visualMode]);
+  }), [cameraFov, cameraMode, environmentPreset, gridExtentScale, gridStyle, lightingPreset, orthoView, shadowsEnabled, sunAzimuth, sunElevation, timeOfDay, visualMode]);
 
   const handleCanvasPointerDown = useCallback((event: { nativeEvent?: unknown; clientX?: number; clientY?: number }) => {
     const nativePosition = getPointerPositionFromNativeEvent(event.nativeEvent);
@@ -462,6 +497,7 @@ function ThreeJsRenderComponent({
                 sunAzimuth={sunAzimuth}
                 sunElevation={sunElevation}
                 shadowsEnabled={shadowsEnabled}
+                timeOfDay={timeOfDay}
                 initialCameraState={initialViewportState?.camera}
                 selectedNodeIds={selectedNodeIds}
                 hiddenNodeIds={hiddenNodeIds}

@@ -29,6 +29,15 @@ Phase 1 is implemented:
   sunAzimuth={132}
   sunElevation={42}
   shadowsEnabled
+  timeOfDay={{
+    mode: 'automatic',
+    latitude: 12.9716,
+    longitude: 77.5946,
+    timezone: 'Asia/Kolkata',
+    date: '2026-09-18',
+    time: '18:30',
+    northOffset: 0,
+  }}
 />
 ```
 
@@ -38,6 +47,9 @@ Phase 1 is implemented:
 - `lightingPreset` accepts `natural`, `directional`, `ambient`, or `hemisphere`.
 - `natural` combines `HemisphereLight` sky/ground fill with a shadow-capable `DirectionalLight` sun.
 - `ambient` and `hemisphere` are indirect-only modes, so shadow rendering is disabled for those presets.
+- `timeOfDay` uses SunCalc to derive the sun position, solar phase, sky scattering, daylight intensity, and night transition from the site coordinates and local date/time.
+- `timeOfDay.mode` can be `automatic` for astronomical sun placement or `manual` to keep using `sunAzimuth` and `sunElevation` while retaining the sky presentation.
+- `northOffset` rotates geographic north into the model's local coordinate system and should be set when the model is not authored north-up.
 
 ## Loading lifecycle
 

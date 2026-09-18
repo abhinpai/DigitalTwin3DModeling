@@ -13,3 +13,6 @@ export type { IStageTreeNode } from './types/stageTreeNode';
 export type { IViewportState } from './types/viewportState';
 export type { EnvironmentPreset } from './types/environmentPreset';
 export type { VisualMode } from './types/visualMode';
+export type { ITimeOfDaySettings, TimeOfDayMode } from './types/timeOfDay';
+export type { ISolarState, SolarPhase } from './utils/solarPosition';
+export { getSolarState } from './utils/solarPosition';

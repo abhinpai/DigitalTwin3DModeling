@@ -4,6 +4,7 @@ import type { GridStyle } from './gridStyle';
 import type { LightingPreset } from './lightingPreset';
 import type { OrthoView } from './orthoView';
 import type { VisualMode } from './visualMode';
+import type { ITimeOfDaySettings } from './timeOfDay';
 
 export interface IViewportState {
   schemaVersion: 1;
@@ -15,6 +16,7 @@ export interface IViewportState {
   gridExtentScale?: number;
   environmentPreset?: EnvironmentPreset;
   lightingPreset?: LightingPreset;
+  timeOfDay?: ITimeOfDaySettings;
   sunAzimuth: number;
   sunElevation: number;
   shadowsEnabled: boolean;

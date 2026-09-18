@@ -2,23 +2,28 @@ import { ThreejsCanvas, type IThreejsCanvasHandle } from '@digital-twin-threejs'
 import {
   Bookmark,
   Box,
+  CalendarDays,
   Camera,
   Check,
+  Clock3,
+  MapPin,
   Menu,
   Moon,
-  RotateCcw,
   Rotate3D,
+  RotateCcw,
   Sun,
   X,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CameraMode } from '../digital-twin-threejs/src/types/cameraMode';
 import type { EnvironmentPreset } from '../digital-twin-threejs/src/types/environmentPreset';
 import type { GridStyle } from '../digital-twin-threejs/src/types/gridStyle';
 import type { LightingPreset } from '../digital-twin-threejs/src/types/lightingPreset';
 import type { OrthoView } from '../digital-twin-threejs/src/types/orthoView';
+import type { ITimeOfDaySettings } from '../digital-twin-threejs/src/types/timeOfDay';
 import type { IViewportState } from '../digital-twin-threejs/src/types/viewportState';
 import type { VisualMode } from '../digital-twin-threejs/src/types/visualMode';
+import { getSolarState } from '../digital-twin-threejs/src/utils/solarPosition';
 
 const MODEL_OPTIONS = [
   { label: 'Bangalore', url: '/models/bangalore.glb' },
@@ -52,11 +57,18 @@ const environmentPresets: Array<{ value: EnvironmentPreset; label: string }> = [
 ];
 
 const lightingPresets: Array<{ value: LightingPreset; label: string }> = [
-  { value: 'natural', label: 'Natural daylight' },
+  { value: 'natural', label: 'Natural daylight (Recommended)' },
   { value: 'directional', label: 'Directional sun' },
   { value: 'ambient', label: 'Ambient fill' },
   { value: 'hemisphere', label: 'Sky hemisphere' },
 ];
+
+const lightingDescriptions: Record<LightingPreset, string> = {
+  natural: 'Sky atmosphere, sunlight, soft fill, and shadows for the most complete view.',
+  directional: 'Sunlight and shadows only. Useful for studying shadow direction and intensity.',
+  ambient: 'Even visibility with no directional shadow. Best for inspection and selection.',
+  hemisphere: 'Soft sky and ground fill with low contrast. Useful for calm presentation views.',
+};
 
 const cameraModes: Array<{ value: CameraMode; label: string }> = [
   { value: 'persp', label: 'Perspective' },
@@ -74,6 +86,65 @@ const orthoViews: Array<{ value: OrthoView; label: string }> = [
 
 type SavedViews = Record<string, IViewportState>;
 type Theme = 'light' | 'dark';
+
+const BANGALORE_TIMEZONE = 'Asia/Kolkata';
+
+const LOCATION_OPTIONS: Array<ITimeOfDaySettings & { label: string }> = [
+  { label: 'Bangalore, India', locationLabel: 'Bangalore, India', mode: 'automatic', latitude: 12.9716, longitude: 77.5946, timezone: 'Asia/Kolkata', date: '', time: '', northOffset: 0, cloudsEnabled: true },
+  { label: 'Richardson, Texas', locationLabel: 'Richardson, Texas', mode: 'automatic', latitude: 32.9483, longitude: -96.7299, timezone: 'America/Chicago', date: '', time: '', northOffset: 0, cloudsEnabled: true },
+  { label: 'London, United Kingdom', locationLabel: 'London, United Kingdom', mode: 'automatic', latitude: 51.5072, longitude: -0.1276, timezone: 'Europe/London', date: '', time: '', northOffset: 0, cloudsEnabled: true },
+  { label: 'Singapore', locationLabel: 'Singapore', mode: 'automatic', latitude: 1.3521, longitude: 103.8198, timezone: 'Asia/Singapore', date: '', time: '', northOffset: 0, cloudsEnabled: true },
+  { label: 'New York, United States', locationLabel: 'New York, United States', mode: 'automatic', latitude: 40.7128, longitude: -74.006, timezone: 'America/New_York', date: '', time: '', northOffset: 0, cloudsEnabled: true },
+];
+
+const TIME_PRESETS = [
+  { label: 'Dawn', time: '06:00' },
+  { label: 'Morning', time: '09:00' },
+  { label: 'Noon', time: '12:00' },
+  { label: 'Sunset', time: '18:30' },
+  { label: 'Night', time: '22:00' },
+];
+
+function getDefaultTimeOfDay(): ITimeOfDaySettings {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: BANGALORE_TIMEZONE,
+    hour12: false,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+
+  return {
+    mode: 'automatic',
+    locationLabel: 'Bangalore, India',
+    latitude: 12.9716,
+    longitude: 77.5946,
+    timezone: BANGALORE_TIMEZONE,
+    date: `${values.year}-${values.month}-${values.day}`,
+    time: `${values.hour === '24' ? '00' : values.hour}:${values.minute}`,
+    northOffset: 0,
+    cloudsEnabled: true,
+  };
+}
+
+function timeToMinutes(time: string): number {
+  const [hours, minutes] = time.split(':').map(Number);
+  return hours * 60 + minutes;
+}
+
+function minutesToTime(minutes: number): string {
+  const hours = Math.floor(minutes / 60).toString().padStart(2, '0');
+  const remainder = (minutes % 60).toString().padStart(2, '0');
+  return `${hours}:${remainder}`;
+}
+
+function formatTime(time: string): string {
+  const [hours, minutes] = time.split(':').map(Number);
+  return new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }).format(new Date(2000, 0, 1, hours, minutes));
+}
 
 function readTheme(): Theme {
   if (typeof window === 'undefined') {
@@ -132,6 +203,9 @@ export function App() {
   const [sunAzimuth, setSunAzimuth] = useState(initialSavedView?.sunAzimuth ?? 132);
   const [sunElevation, setSunElevation] = useState(initialSavedView?.sunElevation ?? 42);
   const [shadowsEnabled, setShadowsEnabled] = useState(initialSavedView?.shadowsEnabled ?? true);
+  const [timeOfDay, setTimeOfDay] = useState<ITimeOfDaySettings>(initialSavedView?.timeOfDay ?? getDefaultTimeOfDay());
+  const [locationQuery, setLocationQuery] = useState(initialSavedView?.timeOfDay?.locationLabel ?? 'Bangalore, India');
+  const [locationMenuOpen, setLocationMenuOpen] = useState(false);
   const [initialViewportState, setInitialViewportState] = useState<IViewportState | undefined>(
     initialSavedView ? cloneViewportState(initialSavedView) : undefined,
   );
@@ -141,6 +215,7 @@ export function App() {
 
   const activeModel = MODEL_OPTIONS.find((model) => model.url === modelUrl) ?? MODEL_OPTIONS[0];
   const hasSavedView = Boolean(savedViews[modelUrl]);
+  const solarState = useMemo(() => getSolarState(timeOfDay), [timeOfDay]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -166,6 +241,8 @@ export function App() {
     setSunAzimuth(state.sunAzimuth);
     setSunElevation(state.sunElevation);
     setShadowsEnabled(state.shadowsEnabled);
+    setTimeOfDay(state.timeOfDay ?? getDefaultTimeOfDay());
+    setLocationQuery(state.timeOfDay?.locationLabel ?? 'Bangalore, India');
     setInitialViewportState(cloneViewportState(state));
   };
 
@@ -178,6 +255,8 @@ export function App() {
     } else {
       setInitialViewportState(undefined);
       setViewStatus('idle');
+      setTimeOfDay(getDefaultTimeOfDay());
+      setLocationQuery('Bangalore, India');
     }
 
     setModelUrl(nextModelUrl);
@@ -208,7 +287,7 @@ export function App() {
   };
 
   const legendClassName = 'mb-3 flex w-full items-center gap-2 p-0 text-[0.64rem] font-semibold uppercase text-forge-muted-strong [&_svg]:text-forge-icon [&_svg]:[stroke-width:1.7]';
-  const sectionClassName = 'm-0 border-0 border-b border-forge-line-soft px-3.5 py-4';
+  const sectionClassName = 'm-0 border-0 border-b border-forge-line-soft px-3.5 py-4 mt-4';
   const controlLabelClassName = 'mb-2 block font-mono text-[0.58rem] font-medium uppercase text-forge-muted';
   const rangeLabelClassName = 'mt-3.5 grid gap-2 text-[0.69rem] text-forge-muted';
 
@@ -349,21 +428,109 @@ export function App() {
 
             <fieldset className={sectionClassName}>
               <legend className={legendClassName}><Sun size={15} /> Lighting</legend>
+              <div className="mb-4 border-b border-forge-line-soft pb-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className={controlLabelClassName}>Time of day</span>
+                  <span className="font-mono text-[0.59rem] uppercase text-forge-signal">{solarState.phase}</span>
+                </div>
+                <div className={`${segmentGroupClassName} grid-cols-2`}>
+                  <button type="button" className={segmentButtonClassName(timeOfDay.mode === 'automatic')} onClick={() => setTimeOfDay((current) => ({ ...current, mode: 'automatic' }))} aria-pressed={timeOfDay.mode === 'automatic'}>Automatic</button>
+                  <button type="button" className={segmentButtonClassName(timeOfDay.mode === 'manual')} onClick={() => setTimeOfDay((current) => ({ ...current, mode: 'manual' }))} aria-pressed={timeOfDay.mode === 'manual'}>Manual</button>
+                </div>
+                <div className="mt-3 grid gap-2 text-[0.69rem] text-forge-muted">
+                  <div className="relative">
+                    <label className="grid gap-1.5">
+                      <span className="flex items-center gap-1.5"><MapPin size={13} /> Location</span>
+                      <input
+                        className={`${selectClassName} w-full pr-3`}
+                        value={locationQuery}
+                        placeholder="Search city or address"
+                        onFocus={() => setLocationMenuOpen(true)}
+                        onChange={(event) => {
+                          setLocationQuery(event.target.value);
+                          setLocationMenuOpen(true);
+                        }}
+                        onBlur={() => window.setTimeout(() => setLocationMenuOpen(false), 120)}
+                        aria-label="Search location"
+                      />
+                    </label>
+                    {locationMenuOpen && locationQuery.trim() ? (
+                      <div className="absolute inset-x-0 top-[58px] z-20 overflow-hidden rounded-md border border-forge-line-strong bg-forge-overlay shadow-panel">
+                        {LOCATION_OPTIONS.filter((location) => location.label.toLowerCase().includes(locationQuery.toLowerCase())).map((location) => (
+                          <button
+                            key={location.label}
+                            className="flex w-full items-start gap-2 border-0 border-b border-forge-line-soft bg-transparent px-3 py-2 text-left text-[0.68rem] text-forge-text last:border-b-0 hover:bg-forge-hover"
+                            type="button"
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => {
+                              setTimeOfDay((current) => ({ ...current, ...location, date: current.date, time: current.time, mode: current.mode }));
+                              setLocationQuery(location.label);
+                              setLocationMenuOpen(false);
+                            }}
+                          >
+                            <MapPin size={13} className="mt-0.5 flex-none text-forge-accent" />
+                            <span>{location.label}</span>
+                          </button>
+                        ))}
+                        {!LOCATION_OPTIONS.some((location) => location.label.toLowerCase().includes(locationQuery.toLowerCase())) ? <div className="px-3 py-2 text-[0.65rem] text-forge-muted">Choose a supported location to resolve coordinates.</div> : null}
+                      </div>
+                    ) : null}
+                  </div>
+                  {timeOfDay.mode === 'automatic' ? (
+                    <>
+                      <label className="grid gap-1.5">
+                        <span className="flex items-center gap-1.5"><CalendarDays size={13} /> Date</span>
+                        <input className={`${selectClassName} w-full`} type="date" value={timeOfDay.date} onChange={(event) => setTimeOfDay((current) => ({ ...current, date: event.target.value }))} />
+                      </label>
+                      <label className="grid gap-1.5">
+                        <span className="flex items-center justify-between"><span className="flex items-center gap-1.5"><Clock3 size={13} /> Local time</span><output className="font-mono text-[0.66rem] font-medium text-forge-text">{formatTime(timeOfDay.time)}</output></span>
+                        <input className="forge-range" type="range" min="0" max="1439" step="5" value={timeToMinutes(timeOfDay.time)} onChange={(event) => setTimeOfDay((current) => ({ ...current, time: minutesToTime(Number(event.target.value)) }))} />
+                      </label>
+                      <div className="grid grid-cols-2 gap-2 font-mono text-[0.59rem] uppercase text-forge-muted">
+                        <span>Sun {Math.round(solarState.elevation)}°</span>
+                        <span className="text-right">Az {Math.round(solarState.azimuth)}°</span>
+                      </div>
+                      <div className="mt-1 grid grid-cols-5 gap-1">
+                        {TIME_PRESETS.map((preset) => (
+                          <button key={preset.label} type="button" className="h-7 rounded border border-forge-line bg-forge-input px-1 text-[0.56rem] font-medium text-forge-muted hover:border-forge-accent hover:text-forge-text" onClick={() => setTimeOfDay((current) => ({ ...current, time: preset.time }))}>{preset.label}</button>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="border-l-2 border-forge-accent bg-forge-input px-2.5 py-2 text-[0.64rem] leading-relaxed text-forge-muted">Manual mode freezes the astronomical clock. Adjust the sun direction controls below.</div>
+                  )}
+                </div>
+              </div>
               <label className="grid gap-2 text-[0.69rem] text-forge-muted">
                 <span className={controlLabelClassName}>Light rig</span>
                 <select className={`${selectClassName} w-full`} value={lightingPreset} onChange={(event) => setLightingPreset(event.target.value as LightingPreset)}>
                   {lightingPresets.map((preset) => <option key={preset.value} value={preset.value}>{preset.label}</option>)}
                 </select>
+                <small className="text-[0.62rem] leading-relaxed text-forge-muted">{lightingDescriptions[lightingPreset]}</small>
               </label>
               {lightingPreset === 'natural' || lightingPreset === 'directional' ? (
                 <>
-                  <label className={rangeLabelClassName}>
-                    <span className="flex justify-between"><span>Sun azimuth</span><output className="font-mono text-[0.66rem] font-medium text-forge-text">{sunAzimuth}°</output></span>
-                    <input className="forge-range" type="range" min="0" max="360" value={sunAzimuth} onChange={(event) => setSunAzimuth(Number(event.target.value))} />
-                  </label>
-                  <label className={rangeLabelClassName}>
-                    <span className="flex justify-between"><span>Sun elevation</span><output className="font-mono text-[0.66rem] font-medium text-forge-text">{sunElevation}°</output></span>
-                    <input className="forge-range" type="range" min="0" max="90" value={sunElevation} onChange={(event) => setSunElevation(Number(event.target.value))} />
+                  {timeOfDay.mode === 'manual' ? (
+                    <>
+                      <label className={rangeLabelClassName}>
+                        <span className="flex justify-between"><span>Sun azimuth</span><output className="font-mono text-[0.66rem] font-medium text-forge-text">{sunAzimuth}°</output></span>
+                        <input className="forge-range" type="range" min="0" max="360" value={sunAzimuth} onChange={(event) => setSunAzimuth(Number(event.target.value))} />
+                      </label>
+                      <label className={rangeLabelClassName}>
+                        <span className="flex justify-between"><span>Sun elevation</span><output className="font-mono text-[0.66rem] font-medium text-forge-text">{sunElevation}°</output></span>
+                        <input className="forge-range" type="range" min="0" max="90" value={sunElevation} onChange={(event) => setSunElevation(Number(event.target.value))} />
+                      </label>
+                    </>
+                  ) : null}
+                  <label className="mt-3.5 flex min-h-10 cursor-pointer items-center justify-between gap-2.5 border-t border-forge-line-soft pt-3.5">
+                    <span className="grid gap-0.5">
+                      <strong className="text-[0.7rem] font-medium">Atmospheric clouds</strong>
+                      <small className="text-[0.62rem] text-forge-muted">Subtle animated cloud layer</small>
+                    </span>
+                    <span className={`relative h-5 w-9 flex-none rounded-full border transition-colors ${(timeOfDay.cloudsEnabled ?? true) ? 'border-forge-accent bg-forge-accent' : 'border-forge-line-strong bg-forge-segment'}`}>
+                      <input className="peer sr-only" type="checkbox" checked={timeOfDay.cloudsEnabled ?? true} onChange={(event) => setTimeOfDay((current) => ({ ...current, cloudsEnabled: event.target.checked }))} />
+                      <span className={`absolute top-[3px] h-3 w-3 rounded-full bg-white shadow transition-transform ${(timeOfDay.cloudsEnabled ?? true) ? 'translate-x-[18px]' : 'translate-x-[3px]'}`} />
+                    </span>
                   </label>
                   <label className="mt-3.5 flex min-h-10 cursor-pointer items-center justify-between gap-2.5 border-t border-forge-line-soft pt-3.5">
                     <span className="grid gap-0.5">
@@ -422,6 +589,7 @@ export function App() {
             sunAzimuth={sunAzimuth}
             sunElevation={sunElevation}
             shadowsEnabled={shadowsEnabled}
+            timeOfDay={timeOfDay}
             initialViewportState={initialViewportState}
             className="block h-full w-full [&_canvas]:block"
           />

@@ -71,6 +71,7 @@ export interface IUseSunLightingParams {
 
 export interface IUseSunLightingResult {
   sunPosition: [number, number, number];
+  skyPosition: [number, number, number];
   targetPosition: [number, number, number];
   shadowGroundPosition: [number, number, number];
   maxDimension: number;
@@ -96,6 +97,7 @@ export function useSunLighting({ scene, sunAzimuth = DEFAULT_SUN_AZIMUTH, sunEle
     const { center, maxDimension } = metrics;
     const azimuth = clamp(sunAzimuth, MIN_SUN_AZIMUTH, MAX_SUN_AZIMUTH);
     const elevation = clamp(sunElevation, MIN_SUN_ELEVATION, MAX_SUN_ELEVATION);
+    const skyElevation = clamp(sunElevation, -90, MAX_SUN_ELEVATION);
     const distance = maxDimension * SUN_DISTANCE_FACTOR;
     const azimuthRadians = toRadians(azimuth);
     const elevationRadians = toRadians(elevation);
@@ -106,10 +108,18 @@ export function useSunLighting({ scene, sunAzimuth = DEFAULT_SUN_AZIMUTH, sunEle
       Math.sin(azimuthRadians) * planarDistance,
     );
     const sunPosition = center.clone().add(sunOffset);
+    const skyPlanarDistance = Math.cos(toRadians(skyElevation)) * distance;
+    const skyOffset = new Vector3(
+      Math.cos(azimuthRadians) * skyPlanarDistance,
+      Math.sin(toRadians(skyElevation)) * distance,
+      Math.sin(azimuthRadians) * skyPlanarDistance,
+    );
+    const skyPosition = center.clone().add(skyOffset);
     const shadowHalfExtent = maxDimension * SHADOW_FRUSTUM_HALF_FACTOR;
 
     return {
       sunPosition: [sunPosition.x, sunPosition.y, sunPosition.z] as [number, number, number],
+      skyPosition: [skyPosition.x, skyPosition.y, skyPosition.z] as [number, number, number],
       targetPosition: [center.x, center.y, center.z] as [number, number, number],
       maxDimension,
       shadowCamera: {

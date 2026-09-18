@@ -8,6 +8,7 @@ import type { OrthoView } from '../../types/orthoView';
 import type { IStageTreeNode } from '../../types/stageTreeNode';
 import type { IViewportState } from '../../types/viewportState';
 import type { VisualMode } from '../../types/visualMode';
+import type { ITimeOfDaySettings } from '../../types/timeOfDay';
 import { ThreeJsRender } from '../ThreeJsRender/ThreeJsRender';
 
 export interface IThreejsCanvasHandle {
@@ -30,6 +31,7 @@ export interface IThreejsCanvasProps {
   sunAzimuth?: number;
   sunElevation?: number;
   shadowsEnabled?: boolean;
+  timeOfDay?: ITimeOfDaySettings;
   initialViewportState?: IViewportState;
   /** Set while an asynchronous initial viewport state is still being resolved. */
   initialViewportStateLoading?: boolean;
@@ -55,6 +57,7 @@ function ThreejsCanvasComponent({
   sunAzimuth,
   sunElevation,
   shadowsEnabled = false,
+  timeOfDay,
   initialViewportState,
   initialViewportStateLoading = false,
   selectedNodeIds,
@@ -87,6 +90,7 @@ function ThreejsCanvasComponent({
         sunAzimuth={sunAzimuth}
         sunElevation={sunElevation}
         shadowsEnabled={shadowsEnabled}
+        {...(timeOfDay ? { timeOfDay } : {})}
         initialViewportState={initialViewportState}
         initialViewportStateLoading={initialViewportStateLoading}
         selectedNodeIds={selectedNodeIds}
