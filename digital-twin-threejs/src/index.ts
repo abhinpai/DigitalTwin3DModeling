@@ -11,5 +11,5 @@ export type { LightingPreset } from './types/lightingPreset';
 export type { OrthoView } from './types/orthoView';
 export type { IStageTreeNode } from './types/stageTreeNode';
 export type { IViewportState } from './types/viewportState';
+export type { EnvironmentPreset } from './types/environmentPreset';
 export type { VisualMode } from './types/visualMode';
-

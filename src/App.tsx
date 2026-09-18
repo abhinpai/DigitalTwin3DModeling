@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { CameraMode } from '../digital-twin-threejs/src/types/cameraMode';
+import type { EnvironmentPreset } from '../digital-twin-threejs/src/types/environmentPreset';
 import type { GridStyle } from '../digital-twin-threejs/src/types/gridStyle';
 import type { LightingPreset } from '../digital-twin-threejs/src/types/lightingPreset';
 import type { OrthoView } from '../digital-twin-threejs/src/types/orthoView';
@@ -39,6 +40,15 @@ const grids: Array<{ value: GridStyle; label: string }> = [
   { value: 'none', label: 'Off' },
   { value: 'lines', label: 'Lines' },
   { value: 'dots', label: 'Points' },
+];
+
+const environmentPresets: Array<{ value: EnvironmentPreset; label: string }> = [
+  { value: 'studio', label: 'Studio' },
+  { value: 'ground', label: 'Ground' },
+  { value: 'concrete', label: 'Concrete' },
+  { value: 'asphalt', label: 'Asphalt' },
+  { value: 'grid', label: 'Grid' },
+  { value: 'points', label: 'Points' },
 ];
 
 const lightingPresets: Array<{ value: LightingPreset; label: string }> = [
@@ -117,6 +127,7 @@ export function App() {
   const [orthoView, setOrthoView] = useState<OrthoView>(initialSavedView?.orthoView ?? 'front');
   const [gridStyle, setGridStyle] = useState<GridStyle>(initialSavedView?.gridStyle ?? 'lines');
   const [gridExtentScale, setGridExtentScale] = useState(initialSavedView?.gridExtentScale ?? 1);
+  const [environmentPreset, setEnvironmentPreset] = useState<EnvironmentPreset>(initialSavedView?.environmentPreset ?? 'grid');
   const [lightingPreset, setLightingPreset] = useState<LightingPreset>(initialSavedView?.lightingPreset ?? 'natural');
   const [sunAzimuth, setSunAzimuth] = useState(initialSavedView?.sunAzimuth ?? 132);
   const [sunElevation, setSunElevation] = useState(initialSavedView?.sunElevation ?? 42);
@@ -150,6 +161,7 @@ export function App() {
     setOrthoView(state.orthoView);
     setGridStyle(state.gridStyle);
     setGridExtentScale(state.gridExtentScale ?? 1);
+    setEnvironmentPreset(state.environmentPreset ?? 'grid');
     setLightingPreset(state.lightingPreset ?? 'natural');
     setSunAzimuth(state.sunAzimuth);
     setSunElevation(state.sunElevation);
@@ -293,6 +305,20 @@ export function App() {
                   <input className="forge-range" type="range" min="0.5" max="5" step="0.25" value={gridExtentScale} onChange={(event) => setGridExtentScale(Number(event.target.value))} />
                 </label>
               ) : null}
+              <label className="mt-3.5 grid gap-2 text-[0.69rem] text-forge-muted">
+                <span className={controlLabelClassName}>Environment base</span>
+                <select
+                  className={`${selectClassName} w-full`}
+                  value={environmentPreset}
+                  onChange={(event) => {
+                    const nextPreset = event.target.value as EnvironmentPreset;
+                    setEnvironmentPreset(nextPreset);
+                    setGridStyle(nextPreset === 'grid' ? 'lines' : nextPreset === 'points' ? 'dots' : 'none');
+                  }}
+                >
+                  {environmentPresets.map((preset) => <option key={preset.value} value={preset.value}>{preset.label}</option>)}
+                </select>
+              </label>
             </fieldset>
 
             <fieldset className={sectionClassName}>
@@ -391,6 +417,7 @@ export function App() {
             orthoView={orthoView}
             gridStyle={gridStyle}
             gridExtentScale={gridExtentScale}
+            environmentPreset={environmentPreset}
             lightingPreset={lightingPreset}
             sunAzimuth={sunAzimuth}
             sunElevation={sunElevation}

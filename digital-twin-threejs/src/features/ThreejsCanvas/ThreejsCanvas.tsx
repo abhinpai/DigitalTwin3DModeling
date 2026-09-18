@@ -1,6 +1,7 @@
 import { forwardRef, useImperativeHandle, useRef, type ForwardedRef, type ReactNode } from 'react';
 import type { ModelLoadState } from '../../components/ModelLoadingOverlay/ModelLoadingOverlay';
 import type { CameraMode } from '../../types/cameraMode';
+import type { EnvironmentPreset } from '../../types/environmentPreset';
 import type { GridStyle } from '../../types/gridStyle';
 import type { LightingPreset } from '../../types/lightingPreset';
 import type { OrthoView } from '../../types/orthoView';
@@ -22,6 +23,8 @@ export interface IThreejsCanvasProps {
   gridStyle?: GridStyle;
   /** Multiplies the model-relative grid coverage. Values are clamped from 0.5 to 5. */
   gridExtentScale?: number;
+  /** Selects the viewport base: studio, ground, concrete, asphalt, grid, or points. */
+  environmentPreset?: EnvironmentPreset;
   /** Selects the active Three.js light rig. */
   lightingPreset?: LightingPreset;
   sunAzimuth?: number;
@@ -47,6 +50,7 @@ function ThreejsCanvasComponent({
   orthoView = 'front',
   gridStyle = 'none',
   gridExtentScale = 1,
+  environmentPreset = 'studio',
   lightingPreset = 'natural',
   sunAzimuth,
   sunElevation,
@@ -78,6 +82,7 @@ function ThreejsCanvasComponent({
         orthoView={orthoView}
         gridStyle={gridStyle}
         gridExtentScale={gridExtentScale}
+        environmentPreset={environmentPreset}
         lightingPreset={lightingPreset}
         sunAzimuth={sunAzimuth}
         sunElevation={sunElevation}

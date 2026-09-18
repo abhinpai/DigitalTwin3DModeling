@@ -1,4 +1,5 @@
 import type { CameraMode } from './cameraMode';
+import type { EnvironmentPreset } from './environmentPreset';
 import type { GridStyle } from './gridStyle';
 import type { LightingPreset } from './lightingPreset';
 import type { OrthoView } from './orthoView';
@@ -12,6 +13,7 @@ export interface IViewportState {
   orthoView: OrthoView;
   gridStyle: GridStyle;
   gridExtentScale?: number;
+  environmentPreset?: EnvironmentPreset;
   lightingPreset?: LightingPreset;
   sunAzimuth: number;
   sunElevation: number;

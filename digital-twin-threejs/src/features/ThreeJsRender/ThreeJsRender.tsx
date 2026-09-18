@@ -7,6 +7,7 @@ import { ModelLoadingOverlay, type ModelLoadState } from '../../components/Model
 import { useCameraFit, type IOrbitControlsApi } from '../../hooks/useCameraFit';
 import { useContainerResize } from '../../hooks/useContainerResize';
 import { useModelGrid } from '../../hooks/useModelGrid';
+import { useEnvironmentBase } from '../../hooks/useEnvironmentBase';
 import { useModelLoader } from '../../hooks/useModelLoader';
 import { useNodeHighlight } from '../../hooks/useNodeHighlight';
 import { useNodeVisibility } from '../../hooks/useNodeVisibility';
@@ -15,6 +16,7 @@ import { useStageTree } from '../../hooks/useStageTree';
 import { useSunLighting } from '../../hooks/useSunLighting';
 import { useVisualMode } from '../../hooks/useVisualMode';
 import type { CameraMode } from '../../types/cameraMode';
+import type { EnvironmentPreset } from '../../types/environmentPreset';
 import type { GridStyle } from '../../types/gridStyle';
 import type { LightingPreset } from '../../types/lightingPreset';
 import type { OrthoView } from '../../types/orthoView';
@@ -80,6 +82,7 @@ export interface IThreeJsRenderProps {
   orthoView?: OrthoView;
   gridStyle?: GridStyle;
   gridExtentScale?: number;
+  environmentPreset?: EnvironmentPreset;
   lightingPreset?: LightingPreset;
   sunAzimuth?: number;
   sunElevation?: number;
@@ -101,14 +104,14 @@ export interface IThreeJsRenderProps {
   onLoadStateChange?: (state: ModelLoadState) => void;
 }
 
-interface ILoadedModelProps extends Pick<IThreeJsRenderProps, 'modelUrl' | 'visualMode' | 'cameraMode' | 'orthoView' | 'gridStyle' | 'gridExtentScale' | 'lightingPreset' | 'sunAzimuth' | 'sunElevation' | 'shadowsEnabled' | 'selectedNodeIds' | 'hiddenNodeIds' | 'onStageTreeChange' | 'onNodeSelect'> {
+interface ILoadedModelProps extends Pick<IThreeJsRenderProps, 'modelUrl' | 'visualMode' | 'cameraMode' | 'orthoView' | 'gridStyle' | 'gridExtentScale' | 'environmentPreset' | 'lightingPreset' | 'sunAzimuth' | 'sunElevation' | 'shadowsEnabled' | 'selectedNodeIds' | 'hiddenNodeIds' | 'onStageTreeChange' | 'onNodeSelect'> {
   initialCameraState?: IViewportState['camera'];
   orbitControlsRef: RefObject<IOrbitControlsApi | null>;
   pointerSelectionGestureRef: MutableRefObject<IPointerSelectionGestureState>;
   onReady: () => void;
 }
 
-function LoadedModel({ modelUrl, visualMode = 'original', cameraMode = 'persp', orthoView = 'front', gridStyle = 'none', gridExtentScale = 1, lightingPreset = 'natural', sunAzimuth, sunElevation, shadowsEnabled = false, selectedNodeIds, hiddenNodeIds, onStageTreeChange, onNodeSelect, initialCameraState, orbitControlsRef, pointerSelectionGestureRef, onReady }: ILoadedModelProps) {
+function LoadedModel({ modelUrl, visualMode = 'original', cameraMode = 'persp', orthoView = 'front', gridStyle = 'none', gridExtentScale = 1, environmentPreset = 'studio', lightingPreset = 'natural', sunAzimuth, sunElevation, shadowsEnabled = false, selectedNodeIds, hiddenNodeIds, onStageTreeChange, onNodeSelect, initialCameraState, orbitControlsRef, pointerSelectionGestureRef, onReady }: ILoadedModelProps) {
   const gltf = useModelLoader(modelUrl);
   const { camera, size, scene: rootScene } = useThree();
   const sunTarget = useMemo(() => new Object3D(), []);
@@ -116,7 +119,9 @@ function LoadedModel({ modelUrl, visualMode = 'original', cameraMode = 'persp', 
   const stageTree = useStageTree({ scene: gltf.scene });
   const directionalLightingEnabled = lightingPreset === 'natural' || lightingPreset === 'directional';
   const effectiveShadowsEnabled = shadowsEnabled && directionalLightingEnabled;
-  const modelGrid = useModelGrid({ scene: gltf.scene, gridStyle, gridExtentScale });
+  const effectiveGridStyle = environmentPreset === 'grid' ? 'lines' : environmentPreset === 'points' ? 'dots' : gridStyle;
+  const modelGrid = useModelGrid({ scene: gltf.scene, gridStyle: effectiveGridStyle, gridExtentScale });
+  const environmentBase = useEnvironmentBase({ scene: gltf.scene, preset: environmentPreset, extentScale: gridExtentScale });
   const sunLighting = useSunLighting({
     scene: gltf.scene,
     sunAzimuth,
@@ -126,7 +131,7 @@ function LoadedModel({ modelUrl, visualMode = 'original', cameraMode = 'persp', 
   const shadowCatcher = useShadowCatcher({
     maxDimension: sunLighting.maxDimension,
     shadowGroundPosition: sunLighting.shadowGroundPosition,
-    shadowsEnabled: effectiveShadowsEnabled,
+    shadowsEnabled: effectiveShadowsEnabled && !environmentBase,
   });
 
   useVisualMode({ scene: gltf.scene, visualMode });
@@ -244,6 +249,11 @@ function LoadedModel({ modelUrl, visualMode = 'original', cameraMode = 'persp', 
         <primitive object={shadowCatcher.mesh} position={shadowCatcher.position} />
       ) : null}
 
+      {environmentBase ? (
+        // eslint-disable-next-line react/no-unknown-property -- R3F primitive accepts object prop.
+        <primitive object={environmentBase.mesh} position={environmentBase.position} />
+      ) : null}
+
       {/* eslint-disable-next-line react/no-unknown-property -- R3F JSX primitive accepts object prop. */}
       <primitive object={gltf.scene} onPointerUp={handleModelPointerUp} />
     </>
@@ -284,6 +294,7 @@ function ThreeJsRenderComponent({
   orthoView = 'front',
   gridStyle = 'none',
   gridExtentScale = 1,
+  environmentPreset = 'studio',
   lightingPreset = 'natural',
   sunAzimuth,
   sunElevation,
@@ -359,6 +370,7 @@ function ThreeJsRenderComponent({
         orthoView,
         gridStyle,
         gridExtentScale,
+        environmentPreset,
         lightingPreset,
         sunAzimuth: sunAzimuth ?? 45,
         sunElevation: sunElevation ?? 47,
@@ -370,7 +382,7 @@ function ThreeJsRenderComponent({
         },
       } satisfies IViewportState;
     },
-  }), [cameraFov, cameraMode, gridExtentScale, gridStyle, lightingPreset, orthoView, shadowsEnabled, sunAzimuth, sunElevation, visualMode]);
+  }), [cameraFov, cameraMode, environmentPreset, gridExtentScale, gridStyle, lightingPreset, orthoView, shadowsEnabled, sunAzimuth, sunElevation, visualMode]);
 
   const handleCanvasPointerDown = useCallback((event: { nativeEvent?: unknown; clientX?: number; clientY?: number }) => {
     const nativePosition = getPointerPositionFromNativeEvent(event.nativeEvent);
@@ -444,7 +456,8 @@ function ThreeJsRenderComponent({
                 cameraMode={cameraMode}
                 orthoView={orthoView}
                 gridStyle={gridStyle}
-                gridExtentScale={gridExtentScale}
+              gridExtentScale={gridExtentScale}
+              environmentPreset={environmentPreset}
                 lightingPreset={lightingPreset}
                 sunAzimuth={sunAzimuth}
                 sunElevation={sunElevation}

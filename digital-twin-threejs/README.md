@@ -24,6 +24,7 @@ Phase 1 is implemented:
   modelUrl="/models/building.glb"
   gridStyle="lines"
   gridExtentScale={2}
+  environmentPreset="concrete"
   lightingPreset="natural"
   sunAzimuth={132}
   sunElevation={42}
@@ -32,6 +33,8 @@ Phase 1 is implemented:
 ```
 
 - `gridExtentScale` expands or contracts the model-relative grid from `0.5` to `5` without changing cell spacing.
+- `environmentPreset` accepts `studio`, `ground`, `concrete`, `asphalt`, `grid`, or `points`.
+- Material presets add a shadow-receiving base sized to the loaded model. `grid` and `points` select the existing grid overlay styles.
 - `lightingPreset` accepts `natural`, `directional`, `ambient`, or `hemisphere`.
 - `natural` combines `HemisphereLight` sky/ground fill with a shadow-capable `DirectionalLight` sun.
 - `ambient` and `hemisphere` are indirect-only modes, so shadow rendering is disabled for those presets.
